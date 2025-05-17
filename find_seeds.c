@@ -1,13 +1,14 @@
 #include "finders.h"
 #include "generator.h"
+#include "quadbase.h" // who named the file this
+#include "util.h"
 #include <stdio.h>
 #include <pthread.h>
 
 int mc = MC_1_16_1;
-
-int64_t lower48;
-
+uint64_t lower48;
 Generator g;
+StructureConfig sconf = { 30084232, 27, 23, Fortress, DIM_NETHER, 0}; // fort
 
 void getRegPos(Pos *p, uint64_t *s, int rx, int rz, StructureConfig sc)
 {
@@ -20,25 +21,21 @@ void getRegPos(Pos *p, uint64_t *s, int rx, int rz, StructureConfig sc)
 // gotta save those like 3 cpu cycles :P
 int getFortressPosOpt(uint64_t seed, int regX, int regZ, Pos *pos)
 {
-    StructureConfig sconf = { 30084232, 27, 23, Fortress, DIM_NETHER, 0}; // fort
-
     getRegPos(pos, &seed, regX, regZ, sconf); // idfk
     return nextInt(&seed, 5) < 2;
 }
 
-void* check_seed(void* lower48b)
+int check_seed(uint64_t lower48, void* ineedsomethingheretomakesearchall48happyidk)
 {
-    int64_t lower48 = *((int64_t*)lower48b); //sure why not
-
     // The structure position depends only on the region coordinates and
     // the lower 48-bits of the world seed.
     Pos p;
     if (!getFortressPosOpt(lower48, 0, 0, &p))
-        return NULL;
+        return 0; //next seed
 
     // forts within 1000 blocks of (0,0) (calculating world spawn would take too long)
     if (p.x > 62 || p.z > 62) {
-        return NULL;
+        return 0;
     }
 
     printf("structure seed %" PRId64 "\n", lower48);
@@ -58,24 +55,18 @@ void* check_seed(void* lower48b)
             spawners++;
         }
     }
-
+    return 1;
 }
 
 int main()
 {
+    int threads = 4;
+
     setupGenerator(&g, mc, 0);
 
-    // quad core cpu (i don't know what i'm doing)
-    pthread_t thread1;
-    pthread_t thread2;
-    pthread_t thread3;
-    pthread_t thread4;
+    uint64_t* seedcount;
+    uint64_t* seeds = loadSavedSeeds("progress", seedcount);
 
-    for(int64_t i = 0; ; i++) {
-        pthread_create(&thread1, NULL, check_seed, &i);
-        pthread_create(&thread2, NULL, check_seed, &i);
-        pthread_create(&thread3, NULL, check_seed, &i);
-        pthread_create(&thread4, NULL, check_seed, &i);
-        pthread_join(thread1, NULL);
-    }
+    // check all 2^48 structure seeds
+    searchAll48(NULL, NULL, "progress", threads, NULL, 0, check_seed, NULL, NULL);
 }
