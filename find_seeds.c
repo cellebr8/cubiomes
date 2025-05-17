@@ -10,6 +10,8 @@ uint64_t lower48;
 Generator g;
 StructureConfig sconf = { 30084232, 27, 23, Fortress, DIM_NETHER, 0}; // fort
 
+FILE* fileptr;
+
 void getRegPos(Pos *p, uint64_t *s, int rx, int rz, StructureConfig sc)
 {
     setSeed(s, rx*341873128712ULL + rz*132897987541ULL + *s + sc.salt);
@@ -38,20 +40,18 @@ int check_seed(uint64_t lower48, void* ineedsomethingheretomakesearchall48happyi
         return 0;
     }
 
-    printf("structure seed %" PRId64 "\n", lower48);
-
     Piece test[400]; // store fortress pieces
 
     // only need 48-bits of seed for structures
     int part_count = getFortressPieces(test, 400, mc, lower48, p.x, p.z);
 
-    printf("part count %d \n", part_count);
-
     int spawners = 0;
     for(int n = 0; n <= part_count && spawners != 2; n++) {
         if (test[n].type == 5) {
-            printf("found spawner: x:%d z:%d rot:%d depth:%d\n",
-                test[n].pos.x, test[n].pos.z, test[n].rot, test[n].depth);
+            char buffer [54];
+            sprintf(buffer, "%" PRId64 ",%d,%d,%d,%d\n",
+                lower48 ,test[n].pos.x, test[n].pos.z, test[n].rot, test[n].depth);
+            fputs(buffer, fileptr);
             spawners++;
         }
     }
@@ -64,9 +64,14 @@ int main()
 
     setupGenerator(&g, mc, 0);
 
-    uint64_t* seedcount;
-    uint64_t* seeds = loadSavedSeeds("progress", seedcount);
+    // structureseed,x,z,rotation,depth
+    fileptr = fopen("seeds.csv", "a");
 
-    // check all 2^48 structure seeds
+    if (fileptr == NULL) {
+        printf("file broken");
+        return 0;
+    }
+
+    // check all 2^48 structure seeds (it saves progress)
     searchAll48(NULL, NULL, "progress", threads, NULL, 0, check_seed, NULL, NULL);
 }
