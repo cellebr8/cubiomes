@@ -11,4 +11,4 @@ docs/LayerSummary.toc
 a.out
 .vscode/
 progress.*
-seeds.csv
+seeds*.csv
